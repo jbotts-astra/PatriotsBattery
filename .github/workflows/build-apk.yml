@@ -19,15 +19,20 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Locate Android SDK
+      - name: Locate and install Android SDK 35
+        shell: bash
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          ls -la "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools"
-      - name: Install Android SDK 35
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "Using SDK: $SDK_ROOT"
+          find "$SDK_ROOT/cmdline-tools" -maxdepth 4 -name sdkmanager -type f -print || true
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -maxdepth 4 -name sdkmanager -type f | head -n 1)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "Android command-line tools are missing" >&2
+            exit 1
+          fi
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platforms;android-35" "build-tools;35.0.0"
       - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
